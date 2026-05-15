@@ -16,6 +16,17 @@ interface Appointment {
   status: string;
 }
 
+function isAppointment(value: unknown): value is Appointment {
+  if (typeof value !== 'object' || value === null) return false;
+  const v = value as Record<string, unknown>;
+  return (
+    (typeof v.id === 'number' || typeof v.id === 'string') &&
+    typeof v.patientName === 'string' &&
+    typeof v.startTime === 'string' &&
+    typeof v.status === 'string'
+  );
+}
+
 const appointments = ref<Appointment[]>([]);
 const loading = ref<boolean>(true);
 const error = ref<string | null>(null);
@@ -31,7 +42,12 @@ onMounted(async () => {
       credentials: 'same-origin',
     });
     if (!response.ok) throw new Error(`Request failed (${response.status})`);
-    appointments.value = await response.json();
+
+    const payload: unknown = await response.json();
+    if (!Array.isArray(payload)) {
+      throw new Error('Malformed schedule response: expected an array');
+    }
+    appointments.value = payload.filter(isAppointment);
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to load schedule';
   } finally {
